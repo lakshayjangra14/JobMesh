@@ -31,14 +31,14 @@ Workers fetch jobs and process them asynchronously
 Failures trigger retries with increasing delays
 Jobs exceeding retry limits move to the dead letter queue
 
-Tech stack
+## Tech Stack
 
-Python
-FastAPI
-Redis
-PostgreSQL
-Docker
-
+- Python  
+- FastAPI  
+- Redis  
+- PostgreSQL  
+- Docker
+- 
 Use cases
 
 Email and notification pipelines
