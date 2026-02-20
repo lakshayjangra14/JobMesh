@@ -17,8 +17,7 @@ class Settings(BaseSettings):
     # How many times to retry a failing job before giving up
     MAX_RETRIES: int = 5
 
-    # The base for exponential backoff  (backoff = BASE ^ retry_number)
-    # retry 1 → 2^1 = 2s, retry 2 → 2^2 = 4s, retry 3 → 2^3 = 8s ...
+    
     BACKOFF_BASE: int = 2
 
     # An ID for the worker instance (overridden per container in Docker)
@@ -27,5 +26,4 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
-# Create a single shared instance — import this everywhere
 settings = Settings()

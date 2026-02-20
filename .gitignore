@@ -1,20 +1,20 @@
-# Python bytecode cache (auto-generated, changes every run)
+
 __pycache__/
 *.py[cod]
 
-# Virtual environment (it's huge, ~200MB, rebuild with pip install -r requirements.txt)
+
 env/
 venv/
 .venv/
 
-# .env has passwords — NEVER commit this
+
 .env
 
-# IDE config
+
 .idea/
 .vscode/
 
-# Docker volumes (data lives here, not code)
+
 pgdata/
 redisdata/
 promdata/
