@@ -1,0 +1,11 @@
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+redis==5.0.1
+sqlalchemy[asyncio]==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+pydantic-settings==2.1.0
+prometheus-client==0.20.0
+structlog==24.1.0
+httpx==0.26.0
+psycopg2-binary==2.9.9
