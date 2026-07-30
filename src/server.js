@@ -1,4 +1,5 @@
-const express = require('express');
+import express from 'express';
+
 const app = express();
 
 app.use(express.json());
@@ -10,5 +11,4 @@ app.get('/health', (req, res) => {
     });
 });
 
-
-module.exports = app;
+export default app;
