@@ -2,4 +2,12 @@ node_modules/
 dist/
 .env
 *.log
-/src/generated/prisma
+
+# AI tool configs
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+
+# Prisma generated client
+src/generated/
