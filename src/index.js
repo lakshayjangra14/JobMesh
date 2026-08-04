@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import app from './server.js';
 import prisma from './lib/prisma.js';
+import redis from './lib/redis.js';
 
 const PORT = process.env.PORT || 3000;
 
