@@ -74,7 +74,7 @@ async function startWorker() {
                             lastError: processingError.message,
                         },
                     });
-                } else {
+                                    } else {
                     // Retries left → wait, then re-queue
                     const delay = calculateBackoff(updatedJob.attempts);
                     console.log(`Job ${jobId} will retry in ${delay}ms (attempt ${updatedJob.attempts}/${updatedJob.maxRetries})`);
@@ -90,12 +90,5 @@ async function startWorker() {
                     await sleep(delay);
                     await enqueueJob(jobId);
                     console.log(`Job ${jobId} re-queued`);
-                }
-            }
-        } catch (error) {
-            console.error('Worker error:', error.message);
-        }
-    }
-}
-
-startWorker();
+                                    }
+                                }
