@@ -1,20 +1,21 @@
 import 'dotenv/config';
 import redis from './lib/redis.js';
 import prisma from './lib/prisma.js';
-import { QUEUE_NAME } from './services/queue.js';
+import { QUEUE_NAME, enqueueJob, calculateBackoff, sleep } from './services/queue.js';
 
 async function processJob(job) {
-    console.log(`Processing job ${job.id} [${job.type}]`);
+    console.log(`Processing job ${job.id} [${job.type}] (attempt ${job.attempts + 1}/${job.maxRetries})`);
 
-    // Temporary: simulate a failure
+    // Simulate a failure for testing
     if (job.type === 'fail.test') {
         throw new Error('Simulated failure for testing');
     }
 
+    // Simulate doing work
     await new Promise((resolve) => setTimeout(resolve, 2000));
+
     console.log(`Job ${job.id} completed successfully`);
 }
-
 
 async function startWorker() {
     console.log('Worker started. Waiting for jobs...');
@@ -50,22 +51,46 @@ async function startWorker() {
             try {
                 await processJob(job);
 
-                // Step 5a: Success → mark as COMPLETED
+                // Success → COMPLETED
                 await prisma.job.update({
                     where: { id: jobId },
                     data: { status: 'COMPLETED' },
                 });
-            } catch (processingError) {
-                // Step 5b: Failed → mark as FAILED, save the error
+            } catch (processingError){
                 console.error(`Job ${jobId} failed:`, processingError.message);
 
-                await prisma.job.update({
+                const updatedJob = await prisma.job.findUnique({
                     where: { id: jobId },
-                    data: {
-                        status: 'FAILED',
-                        lastError: processingError.message,
-                    },
                 });
+
+                if (updatedJob.attempts >= updatedJob.maxRetries) {
+                    // No retries left → DEAD
+                    console.error(`Job ${jobId} exhausted all ${updatedJob.maxRetries} retries. Moving to DEAD.`);
+
+                    await prisma.job.update({
+                        where: { id: jobId },
+                        data: {
+                            status: 'DEAD',
+                            lastError: processingError.message,
+                        },
+                    });
+                } else {
+                    // Retries left → wait, then re-queue
+                    const delay = calculateBackoff(updatedJob.attempts);
+                    console.log(`Job ${jobId} will retry in ${delay}ms (attempt ${updatedJob.attempts}/${updatedJob.maxRetries})`);
+
+                    await prisma.job.update({
+                        where: { id: jobId },
+                        data: {
+                            status: 'QUEUED',
+                            lastError: processingError.message,
+                        },
+                    });
+
+                    await sleep(delay);
+                    await enqueueJob(jobId);
+                    console.log(`Job ${jobId} re-queued`);
+                }
             }
         } catch (error) {
             console.error('Worker error:', error.message);
