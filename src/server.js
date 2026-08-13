@@ -1,5 +1,6 @@
 import express from 'express';
 import jobRoutes from './routes/jobs.js';
+import metricsRoutes from './routes/metrics.js';
 
 const app = express();
 
@@ -15,5 +16,8 @@ app.get('/health', (req, res) => {
 
 // Job routes
 app.use('/api/jobs', jobRoutes);
+
+// Metrics routes
+app.use('/api/metrics', metricsRoutes);
 
 export default app;
