@@ -2,7 +2,7 @@ import 'dotenv/config';
 import redis from './lib/redis.js';
 import prisma from './lib/prisma.js';
 import { QUEUE_NAME, enqueueJob, calculateBackoff, sleep } from './services/queue.js';
-
+const WORKER_ID = process.env.WORKER_ID || `worker-${process.pid}`;
 async function processJob(job) {
     console.log(`Processing job ${job.id} [${job.type}] (attempt ${job.attempts + 1}/${job.maxRetries})`);
 
@@ -14,11 +14,12 @@ async function processJob(job) {
     // Simulate doing work
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    console.log(`Job ${job.id} completed successfully`);
+    console.log(`[${WORKER_ID}] Job ${job.id} completed successfully`);
+
 }
 
 async function startWorker() {
-    console.log('Worker started. Waiting for jobs...');
+console.log(`[${WORKER_ID}] Worker started. Waiting for jobs...`);
 
     while (true) {
         try {

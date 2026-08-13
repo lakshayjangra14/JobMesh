@@ -14,6 +14,17 @@ services:
       - postgres
       - redis
 
+  worker:
+    build: .
+    command: node src/worker.js
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://jobmesh:jobmesh123@postgres:5432/jobmesh
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+
   postgres:
     image: postgres:16-alpine
     ports:
