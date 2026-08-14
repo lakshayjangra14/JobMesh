@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JobMesh — Project Documentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; color:#1a1a2e; background:#f8f9fc; line-height:1.7; }
+  .page { max-width:900px; margin:0 auto; padding:40px 50px; background:#fff; }
+  h1 { font-size:2.4em; font-weight:800; color:#0f0f23; margin-bottom:8px; }
+  h2 { font-size:1.6em; font-weight:700; color:#1a1a2e; margin:40px 0 16px; padding-bottom:8px; border-bottom:3px solid #6c5ce7; }
+  h3 { font-size:1.15em; font-weight:600; color:#2d3436; margin:24px 0 10px; }
+  p { margin:8px 0; color:#2d3436; }
+  .subtitle { font-size:1.1em; color:#636e72; margin-bottom:30px; }
+  .badge { display:inline-block; background:#6c5ce7; color:#fff; padding:3px 12px; border-radius:20px; font-size:0.75em; font-weight:600; margin-right:6px; }
+  .badge.green { background:#00b894; }
+  .badge.orange { background:#e17055; }
+  .badge.blue { background:#0984e3; }
+  table { width:100%; border-collapse:collapse; margin:12px 0 20px; font-size:0.9em; }
+  th { background:#6c5ce7; color:#fff; padding:10px 14px; text-align:left; font-weight:600; }
+  td { padding:9px 14px; border-bottom:1px solid #eee; }
+  tr:nth-child(even) { background:#f8f9fc; }
+  code { background:#f1f2f6; padding:2px 6px; border-radius:4px; font-size:0.88em; font-family:'Courier New',monospace; }
+  pre { background:#1a1a2e; color:#a8e6cf; padding:18px 22px; border-radius:10px; overflow-x:auto; font-size:0.85em; line-height:1.6; margin:12px 0 20px; font-family:'Courier New',monospace; }
+  .diagram { background:#f8f9fc; border:2px solid #dfe6e9; border-radius:12px; padding:24px; margin:16px 0 24px; text-align:center; }
+  .diagram pre { background:none; color:#2d3436; text-align:left; padding:0; margin:0; font-size:0.82em; display:inline-block; }
+  .card { background:linear-gradient(135deg,#f8f9fc,#fff); border:1px solid #dfe6e9; border-radius:12px; padding:20px 24px; margin:14px 0; }
+  .card h3 { margin-top:0; color:#6c5ce7; }
+  .flow-step { display:flex; align-items:flex-start; margin:8px 0; }
+  .flow-num { background:#6c5ce7; color:#fff; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.8em; margin-right:12px; flex-shrink:0; margin-top:2px; }
+  .highlight { background:linear-gradient(135deg,#6c5ce7,#a29bfe); color:#fff; padding:20px 28px; border-radius:12px; margin:20px 0; }
+  .highlight h3 { color:#fff; margin-top:0; }
+  .highlight p { color:#dfe6e9; }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .qa { margin:14px 0; }
+  .qa strong { color:#6c5ce7; }
+  .qa p { margin:4px 0 14px; padding-left:16px; border-left:3px solid #dfe6e9; color:#636e72; }
+  @media print { body { background:#fff; } .page { padding:20px; } h2 { break-after:avoid; } pre { font-size:0.78em; } .diagram { break-inside:avoid; } }
+  .pagebreak { page-break-before:always; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>🔷 JobMesh</h1>
+<p class="subtitle">Distributed Job Queue System — Complete Project Documentation</p>
+<p>
+  <span class="badge">Node.js</span>
+  <span class="badge green">Express</span>
+  <span class="badge blue">PostgreSQL</span>
+  <span class="badge orange">Redis</span>
+  <span class="badge">Prisma</span>
+  <span class="badge green">Docker</span>
+</p>
+
+<h2>1. What Is JobMesh?</h2>
+<p>A production-style distributed job queue where clients submit background tasks via REST API. Jobs are stored in PostgreSQL, queued in Redis, and processed by independent worker services with retry logic, exponential backoff, and dead letter queues.</p>
+
+<div class="highlight">
+<h3>The One-Liner Pitch</h3>
+<p>"I built a distributed job queue system following the producer-consumer pattern. The API server accepts jobs via REST, persists metadata in PostgreSQL, enqueues IDs in Redis, and independent workers process them with exponential backoff retries and a dead letter queue for permanent failures."</p>
+</div>
+
+<h2>2. System Architecture</h2>
+<div class="diagram">
+<pre>
+    ┌──────────┐         ┌───────────────┐         ┌───────────┐         ┌──────────────┐
+    │          │  POST   │               │  LPUSH  │           │  BRPOP  │              │
+    │  Client  │────────▶│  API Server   │────────▶│   Redis   │◀────────│  Worker(s)   │
+    │  (curl)  │         │  (Express)    │         │  (Queue)  │         │  (Processor) │
+    └──────────┘         └───────┬───────┘         └───────────┘         └──────┬───────┘
+                                 │                                              │
+                                 │  INSERT/SELECT    ┌──────────────┐           │
+                                 └──────────────────▶│  PostgreSQL  │◀──────────┘
+                                                     │  (Database)  │  UPDATE status
+                                                     └──────────────┘
+</pre>
+</div>
+
+<h3>Component Roles</h3>
+<table>
+<tr><th>Component</th><th>Role</th><th>Analogy</th></tr>
+<tr><td>Client</td><td>Submits jobs via HTTP</td><td>Customer at a post office</td></tr>
+<tr><td>API Server</td><td>Validates, saves, queues jobs</td><td>Clerk at the counter</td></tr>
+<tr><td>PostgreSQL</td><td>Permanent job data storage</td><td>The ledger book</td></tr>
+<tr><td>Redis</td><td>Fast in-memory job queue</td><td>The mailbag</td></tr>
+<tr><td>Worker(s)</td><td>Processes jobs independently</td><td>Delivery drivers</td></tr>
+</table>
+
+<h2>3. Job Lifecycle</h2>
+<div class="diagram">
+<pre>
+                                    ┌─────────────┐
+                         ┌─────────│   QUEUED     │◀──── Job submitted
+                         │         └──────┬───────┘
+                         │                │ Worker picks up
+                         │                ▼
+                         │         ┌─────────────┐
+                   retry │         │ PROCESSING  │
+                 (backoff)│        └──┬────────┬──┘
+                         │           │        │
+                         │       success    failure
+                         │           │        │
+                         │           ▼        ▼
+                         │    ┌──────────┐ ┌────────┐
+                         │    │COMPLETED │ │ FAILED │
+                         │    │    ✅    │ └───┬────┘
+                         │    └──────────┘     │
+                         │              retries left?
+                         │              ┌──────┴──────┐
+                         └──── yes ─────┘             │
+                                                  no  ▼
+                                               ┌──────────┐
+                                               │   DEAD   │
+                                               │    💀    │
+                                               └──────────┘
+</pre>
+</div>
+
+<h2>4. Technology Stack</h2>
+
+<div class="two-col">
+<div class="card">
+<h3>PostgreSQL</h3>
+<p><strong>What:</strong> Relational database</p>
+<p><strong>Where:</strong> Docker container <code>jobmesh-postgres-1</code> on port 5432</p>
+<p><strong>Why:</strong> ACID compliance, native JSON support, enums, industry standard</p>
+<p><strong>Stores:</strong> All job metadata permanently</p>
+</div>
+<div class="card">
+<h3>Redis</h3>
+<p><strong>What:</strong> In-memory data store</p>
+<p><strong>Where:</strong> Docker container <code>jobmesh-redis-1</code> on port 6379</p>
+<p><strong>Why:</strong> Sub-millisecond queue ops, BRPOP blocking, atomic pops</p>
+<p><strong>Stores:</strong> Only job IDs (temporary queue)</p>
+</div>
+<div class="card">
+<h3>Express</h3>
+<p><strong>What:</strong> HTTP framework for Node.js</p>
+<p><strong>Where:</strong> API server process</p>
+<p><strong>Why:</strong> Industry standard, minimal, huge ecosystem</p>
+</div>
+<div class="card">
+<h3>Prisma</h3>
+<p><strong>What:</strong> ORM (Object-Relational Mapper)</p>
+<p><strong>Where:</strong> CLI at dev time, client at runtime</p>
+<p><strong>Why:</strong> Schema-first, auto-generated client, migrations</p>
+</div>
+<div class="card">
+<h3>Docker</h3>
+<p><strong>What:</strong> Containerization platform</p>
+<p><strong>Where:</strong> Your machine / cloud servers</p>
+<p><strong>Why:</strong> Portable, consistent, easy scaling</p>
+</div>
+<div class="card">
+<h3>ioredis</h3>
+<p><strong>What:</strong> Redis client for Node.js</p>
+<p><strong>Where:</strong> API + Worker processes</p>
+<p><strong>Why:</strong> Auto-reconnect, Promises, battle-tested</p>
+</div>
+</div>
+
+<h2>5. Where Things Physically Run</h2>
+<div class="diagram">
+<pre>
+  Your Machine (localhost)
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                                                                  │
+  │  You access:  localhost:3000 (API)                               │
+  │               localhost:5432 (PostgreSQL)                        │
+  │               localhost:6379 (Redis)                             │
+  │                                                                  │
+  │  ┌─── Docker Engine ─────────────────────────────────────────┐  │
+  │  │                                                           │  │
+  │  │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────┐  │  │
+  │  │  │ postgres:16     │  │  redis:7-alpine  │  │ API      │  │  │
+  │  │  │ alpine          │  │                  │  │ Server   │  │  │
+  │  │  │                 │  │  Data: in RAM    │  │          │  │  │
+  │  │  │ Data: pgdata    │  │  (temporary)     │  │ Port     │  │  │
+  │  │  │ volume (disk)   │  │                  │  │ 3000     │  │  │
+  │  │  │                 │  │  Port 6379       │  │          │  │  │
+  │  │  │ Port 5432       │  │                  │  │          │  │  │
+  │  │  └─────────────────┘  └─────────────────┘  └──────────┘  │  │
+  │  │                                                           │  │
+  │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐                  │  │
+  │  │  │ Worker 1 │ │ Worker 2 │ │ Worker 3 │  (scalable)      │  │
+  │  │  │ No port  │ │ No port  │ │ No port  │                  │  │
+  │  │  └──────────┘ └──────────┘ └──────────┘                  │  │
+  │  └───────────────────────────────────────────────────────────┘  │
+  └──────────────────────────────────────────────────────────────────┘
+
+  Inside Docker: containers use service names (postgres:5432, redis:6379)
+  From your machine: use localhost:5432, localhost:6379
+</pre>
+</div>
+
+<h2>6. Project File Structure</h2>
+<pre>
+JobMesh/
+├── prisma/
+│   ├── schema.prisma              ← Database table definitions
+│   └── migrations/                ← SQL migration history
+├── src/
+│   ├── generated/prisma/          ← Auto-generated DB client
+│   ├── lib/
+│   │   ├── prisma.js              ← Shared PostgreSQL connection (singleton)
+│   │   └── redis.js               ← Shared Redis connection (singleton)
+│   ├── routes/
+│   │   ├── jobs.js                ← Job submission + DLQ endpoints
+│   │   └── metrics.js             ← System metrics endpoint
+│   ├── services/
+│   │   └── queue.js               ← Redis queue ops + backoff calc
+│   ├── index.js                   ← Entry point (starts server)
+│   ├── server.js                  ← Express app (routes, middleware)
+│   └── worker.js                  ← Job processor (standalone)
+├── .env                           ← Environment variables
+├── Dockerfile                     ← Container blueprint
+├── docker-compose.yml             ← Multi-service orchestration
+└── package.json                   ← Project manifest
+</pre>
+
+<h2>7. Design Patterns Used</h2>
+<table>
+<tr><th>Pattern</th><th>Where</th><th>Why</th></tr>
+<tr><td>Producer-Consumer</td><td>API = producer, Workers = consumers</td><td>Decouples submission from processing, enables independent scaling</td></tr>
+<tr><td>Singleton</td><td>lib/prisma.js, lib/redis.js</td><td>One connection shared everywhere, prevents pool exhaustion</td></tr>
+<tr><td>Service Layer</td><td>services/queue.js</td><td>Separates business logic from HTTP handling</td></tr>
+<tr><td>App/Server Separation</td><td>server.js vs index.js</td><td>Testability — import app without starting server</td></tr>
+<tr><td>Exponential Backoff</td><td>calculateBackoff()</td><td>Prevents overwhelming failing services</td></tr>
+<tr><td>Dead Letter Queue</td><td>DEAD status + /dead endpoint</td><td>Preserves permanently failed jobs for debugging</td></tr>
+</table>
+
+<h2>8. API Reference</h2>
+<table>
+<tr><th>Method</th><th>Endpoint</th><th>Purpose</th><th>Response</th></tr>
+<tr><td><span class="badge green">GET</span></td><td>/health</td><td>Server alive check</td><td>200 {status, timestamp}</td></tr>
+<tr><td><span class="badge orange">POST</span></td><td>/api/jobs</td><td>Submit a new job</td><td>201 {job object}</td></tr>
+<tr><td><span class="badge green">GET</span></td><td>/api/jobs/dead</td><td>List dead jobs</td><td>200 {count, jobs[]}</td></tr>
+<tr><td><span class="badge orange">POST</span></td><td>/api/jobs/:id/retry</td><td>Retry a dead job</td><td>200 {message, job}</td></tr>
+<tr><td><span class="badge green">GET</span></td><td>/api/metrics</td><td>System metrics</td><td>200 {jobs, queue, uptime}</td></tr>
+</table>
+
+<div class="pagebreak"></div>
+
+<h2>9. Interview Questions & Answers</h2>
+
+<h3>System Design</h3>
+
+<div class="qa">
+<strong>Q: Explain your project architecture.</strong>
+<p>It follows the producer-consumer pattern. The API server accepts job submissions via REST, saves metadata to PostgreSQL, and pushes job IDs onto a Redis list. Worker processes independently BRPOP from the queue, fetch job details, execute the work, and update the status. PostgreSQL is the source of truth for durability, Redis is the fast channel for work distribution. Workers scale horizontally — adding more increases throughput linearly.</p>
+</div>
+
+<div class="qa">
+<strong>Q: Why use both PostgreSQL AND Redis?</strong>
+<p>They solve different problems. PostgreSQL provides durable, ACID-compliant storage — job data survives crashes and is queryable. Redis provides sub-millisecond queue operations with blocking waits. Using only PostgreSQL means wasteful polling. Using only Redis means losing data on crash. Together they complement each other.</p>
+</div>
+
+<div class="qa">
+<strong>Q: How does your system handle failures?</strong>
+<p>Three levels: (1) Job failures are retried with exponential backoff — 2s, 4s, 8s delays. (2) After max retries (default 3), the job moves to a Dead Letter Queue with the error preserved. (3) Infrastructure — if Redis goes down, the API still saves jobs to PostgreSQL. The API crashes if PostgreSQL is unreachable because it can't function without the database (fail fast).</p>
+</div>
+
+<div class="qa">
+<strong>Q: How do you scale the system?</strong>
+<p>Workers scale horizontally with docker-compose --scale worker=10. Redis BRPOP is atomic — each job goes to exactly one worker, no duplicates. API and workers scale independently based on their own bottlenecks.</p>
+</div>
+
+<div class="qa">
+<strong>Q: What is exponential backoff?</strong>
+<p>A retry strategy where wait time doubles after each failure: 2s, 4s, 8s, 16s. Prevents overwhelming an already struggling downstream service. Used by AWS SDKs, Google APIs, and most production systems.</p>
+</div>
+
+<div class="qa">
+<strong>Q: What is a Dead Letter Queue?</strong>
+<p>Where jobs go after exhausting all retries. Dead jobs are preserved with error messages, queryable via API, and can be manually retried after fixing the root cause. It's an observability and debugging tool.</p>
+</div>
+
+<h3>Express & HTTP</h3>
+
+<div class="qa">
+<strong>Q: What is middleware?</strong>
+<p>A function that runs between receiving a request and executing the route handler. express.json() parses JSON bodies. Middleware runs in registration order — sequence matters. It can modify req/res, end the cycle, or pass to the next middleware.</p>
+</div>
+
+<div class="qa">
+<strong>Q: Why separate server.js and index.js?</strong>
+<p>App/server separation pattern for testability. Tests import server.js to get the app without starting a real server — no port conflicts, no hanging processes.</p>
+</div>
+
+<h3>Database</h3>
+
+<div class="qa">
+<strong>Q: What are database migrations?</strong>
+<p>Version-controlled, incremental schema changes. Prisma generates SQL migration files. Teammates run prisma migrate deploy and get the same schema. CI/CD applies migrations during deployment. Complete audit trail of every change.</p>
+</div>
+
+<div class="qa">
+<strong>Q: Why UUIDs instead of auto-incrementing IDs?</strong>
+<p>UUIDs are globally unique — no collisions in distributed systems. Auto-increment IDs are predictable (security risk) and conflict when multiple databases exist.</p>
+</div>
+
+<div class="qa">
+<strong>Q: What is the Singleton Pattern for database connections?</strong>
+<p>Each PrismaClient opens a connection pool (5-10 connections). If every file created its own client, you'd exhaust the database connection limit. Our singleton creates one client shared by all files.</p>
+</div>
+
+<h3>Redis & Queues</h3>
+
+<div class="qa">
+<strong>Q: How does Redis work as a queue?</strong>
+<p>Using Lists with LPUSH (add left) and BRPOP (blocking pop right) = FIFO order. BRPOP is blocking — workers sleep with zero CPU until Redis wakes them when a job arrives. No polling.</p>
+</div>
+
+<div class="qa">
+<strong>Q: Why store only job IDs in Redis?</strong>
+<p>Redis uses expensive RAM. UUIDs are tiny (~36 bytes). PostgreSQL already has the full data. If Redis crashes, only the queue is lost — job data in PostgreSQL is safe.</p>
+</div>
+
+<div class="qa">
+<strong>Q: What prevents two workers from processing the same job?</strong>
+<p>BRPOP is atomic. Redis's single-threaded execution guarantees each element is returned to exactly one consumer. No locks or coordination code needed.</p>
+</div>
+
+<h3>Docker</h3>
+
+<div class="qa">
+<strong>Q: Explain Docker layer caching.</strong>
+<p>Docker caches build layers. We copy package.json before source code — so npm install is cached when only code changes. Saves 1-3 minutes per build.</p>
+</div>
+
+<div class="qa">
+<strong>Q: Dockerfile vs docker-compose.yml?</strong>
+<p>Dockerfile builds ONE image (recipe for your app). docker-compose.yml orchestrates MULTIPLE containers (API + DB + Redis + workers). One is a recipe, the other is the full meal plan.</p>
+</div>
+
+<div class="qa">
+<strong>Q: How do containers communicate?</strong>
+<p>Docker Compose creates an internal network. Containers find each other by service name — API connects to postgres:5432, not localhost. Port mapping makes services accessible from the host machine.</p>
+</div>
+
+<h2>10. Commands Cheat Sheet</h2>
+<pre>
+# Development
+npm run dev                            # API with auto-restart
+npm run worker                         # Start one worker
+WORKER_ID=w1 node src/worker.js        # Named worker
+
+# Docker
+docker-compose up -d postgres redis    # Start DB + queue
+docker-compose up -d --scale worker=3  # Everything + 3 workers
+docker ps                              # List containers
+docker-compose down                    # Stop all
+
+# Prisma
+npx prisma migrate dev --name &lt;name&gt;   # Create migration
+npx prisma generate                    # Regenerate client
+npx prisma studio                      # Visual DB browser
+
+# Testing
+curl http://localhost:3000/health
+curl http://localhost:3000/api/metrics
+curl -X POST http://localhost:3000/api/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"type":"email.send","payload":{"to":"user@test.com"}}'
+</pre>
+
+<div class="highlight" style="margin-top:40px; text-align:center;">
+<h3>Built by Lakshay Jangra</h3>
+<p>github.com/lakshayjangra14/JobMesh</p>
+</div>
+
+</div>
+</body>
+</html>

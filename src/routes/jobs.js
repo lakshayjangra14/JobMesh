@@ -44,6 +44,48 @@ router.post('/', async (req, res) => {
         });
     }
 });
+// POST /api/jobs/bulk — Submit multiple jobs at once
+router.post('/bulk', async (req, res) => {
+    try {
+        const { jobs } = req.body;
+
+        if (!Array.isArray(jobs) || jobs.length === 0) {
+            return res.status(400).json({
+                error: 'Request body must contain a non-empty "jobs" array',
+            });
+        }
+
+        // Validate all jobs
+        for (const job of jobs) {
+            if (!job.type || !job.payload) {
+                return res.status(400).json({
+                    error: 'Each job must have "type" and "payload"',
+                });
+            }
+        }
+
+        // Bulk insert into PostgreSQL
+        const createdJobs = await prisma.job.createManyAndReturn({
+            data: jobs.map(j => ({ type: j.type, payload: j.payload })),
+        });
+
+        // Bulk push all IDs to Redis using pipeline
+        const pipeline = (await import('../lib/redis.js')).default.pipeline();
+        for (const job of createdJobs) {
+            pipeline.lpush('jobmesh:queue', job.id);
+        }
+        await pipeline.exec();
+
+        res.status(201).json({
+            submitted: createdJobs.length,
+            jobs: createdJobs,
+        });
+    } catch (error) {
+        console.error('Failed to create bulk jobs:', error.message);
+        res.status(500).json({ error: 'Failed to create bulk jobs' });
+    }
+});
+
 // GET /api/jobs/dead — List all dead jobs
 router.get('/dead', async (req, res) => {
     try {

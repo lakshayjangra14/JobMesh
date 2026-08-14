@@ -17,7 +17,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "worker": "node src/worker.js"
+    "worker": "node src/worker.js",
+    "benchmark": "node src/benchmark.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
